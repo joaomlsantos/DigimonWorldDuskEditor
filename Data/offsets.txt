@@ -1,0 +1,2 @@
+0x01F6E810|Area 1 Encounter 1
+0x01F6E828|Area 1 Encounter 2
