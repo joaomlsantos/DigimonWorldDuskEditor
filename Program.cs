@@ -1,15 +1,17 @@
-namespace DigimonWorldDuskEditor;
-
 using System;
 using System.Windows.Forms;
+using DigimonWorldDuskEditor.Forms;
 
-public static class Program
+namespace DigimonWorldDuskEditor
 {
-    [STAThread]
-    public static void Main()
+    public static class Program
     {
-        Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
-        Application.Run(new MainForm());
+        [STAThread]
+        public static void Main()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new MainForm());
+        }
     }
 }

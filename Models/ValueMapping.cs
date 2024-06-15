@@ -1,11 +1,16 @@
-public class ValueMapping
-{
-    public string ValueName { get; set; }
-    public byte[] HexValue { get; set; }
 
-    public ValueMapping()
+namespace DigimonWorldDuskEditor.Models
+{
+    public class ValueMapping
     {
-        this.ValueName = "";
-        this.HexValue = new byte[0];
+        public string ValueName { get; set; }
+        public byte[] HexValue { get; set; }
+        public long Offset { get; set; }
+
+        public ValueMapping()
+        {
+            this.ValueName = "";
+            this.HexValue = new byte[0];
+        }
     }
 }

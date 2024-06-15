@@ -2,79 +2,164 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
+using DigimonWorldDuskEditor.Models;
+using DigimonWorldDuskEditor.Services;
+using System.Diagnostics;
 
-public class MainForm : Form
+
+namespace DigimonWorldDuskEditor.Forms
 {
-    private ComboBox areaComboBox;
-    private ComboBox valueComboBox;
-    private Button saveButton;
-    private BinaryFileService binaryFileService;
-    private MappingService mappingService;
-    private List<OffsetAddress> offsetAddresses;
-    private List<ValueMapping> valueMappings;
-
-    public MainForm()
+    public class MainForm : Form
     {
-        binaryFileService = new BinaryFileService("C:/Workspace/digimon_stuffs/Digimon World - Dusk (USA) - Copy.nds");
-        mappingService = new MappingService("./Data/offsets.txt", "./Data/values.txt");
-        offsetAddresses = mappingService.GetOffsetAddresses();
-        valueMappings = mappingService.GetValueMappings();
-
-        InitializeComponents();
-    }
-
-    private void InitializeComponents()
-    {
-        areaComboBox = new ComboBox { Dock = DockStyle.Top };
-        valueComboBox = new ComboBox { Dock = DockStyle.Top };
-        saveButton = new Button { Text = "Save", Dock = DockStyle.Top };
-
-        areaComboBox.SelectedIndexChanged += AreaComboBox_SelectedIndexChanged;
-        saveButton.Click += SaveButton_Click;
-
-        foreach (var offsetAddress in offsetAddresses)
+        private ListBox areaListBox;
+        private Panel valuePanel;
+        private Button saveButton;
+        private BinaryFileService binaryFileService;
+        private MappingService mappingService;
+        private List<OffsetAddress> offsetAddresses;
+        private List<ValueMapping> valueMappings;
+        private Dictionary<string, List<(byte[], long)>> preloadedValues;
+        private Dictionary<ComboBox, long> valueComboBoxOffsets;
+    
+        public MainForm()
         {
-            areaComboBox.Items.Add(offsetAddress.AreaName);
+            binaryFileService = new BinaryFileService("C:/Workspace/digimon_stuffs/Digimon World - Dusk (USA).nds");
+            mappingService = new MappingService("C:/Workspace/digimon_stuffs/DigimonWorldDuskEditor/Data/locations.txt", "C:/Workspace/digimon_stuffs/DigimonWorldDuskEditor/Data/digimon.txt");
+            offsetAddresses = mappingService.GetOffsetAddresses();
+
+            valueMappings = mappingService.GetValueMappings();
+
+            preloadedValues = new Dictionary<string, List<(byte[], long)>>();
+            valueComboBoxOffsets = new Dictionary<ComboBox, long>();
+
+            PreloadValues();
+            InitializeComponents();
+        }
+    
+        private void PreloadValues()
+        {
+            var interval = 0x18;
+            foreach (var offsetAddress in offsetAddresses)
+            {
+                var offset = offsetAddress.Offset;
+                var values = binaryFileService.ReadValuesAtIntervals(offset + 0x10, interval, 0x00, 0xFF);
+                preloadedValues[offsetAddress.AreaName] = values;
+            }
         }
 
-        foreach (var valueMapping in valueMappings)
+        private void InitializeComponents()
         {
-            valueComboBox.Items.Add(valueMapping.ValueName);
+            this.Text = "Digimon World Dusk Editor";
+            this.Width = 1024;
+            this.Height = 500;
+
+            areaListBox = new ListBox { Dock = DockStyle.Left, Width = 250 };
+            valuePanel = new Panel { Dock = DockStyle.Fill };
+            saveButton = new Button { Text = "Save", Dock = DockStyle.Bottom, Height = 40, Width = 100 };
+
+            areaListBox.SelectedIndexChanged += AreaListBox_SelectedIndexChanged;
+            saveButton.Click += SaveButton_Click;
+    
+            foreach (var offsetAddress in offsetAddresses)
+            {
+                areaListBox.Items.Add(offsetAddress.AreaName);
+            }
+    
+            Controls.Add(saveButton);
+            Controls.Add(valuePanel);
+            Controls.Add(areaListBox);
+
+            //CreateComboBoxes();
         }
 
-        Controls.Add(saveButton);
-        Controls.Add(valueComboBox);
-        Controls.Add(areaComboBox);
-    }
 
-    private void AreaComboBox_SelectedIndexChanged(object sender, EventArgs e)
-    {
-        var selectedArea = areaComboBox.SelectedItem.ToString();
-        var offset = offsetAddresses.FirstOrDefault(oa => oa.AreaName == selectedArea)?.Offset ?? 0;
-        var currentData = binaryFileService.ReadBytes(offset, 2);
-
-        var currentMapping = valueMappings.FirstOrDefault(vm => vm.HexValue.SequenceEqual(currentData));
-        if (currentMapping != null)
+/*
+        private void AreaListBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            valueComboBox.SelectedItem = currentMapping.ValueName;
+            var selectedArea = areaListBox.SelectedItem.ToString();
+            var offset = offsetAddresses.FirstOrDefault(oa => oa.AreaName == selectedArea)?.Offset ?? 0;
+
+            // New interval and termination logic
+            var interval = 0x18; // 24 in decimal
+            var values = binaryFileService.ReadValuesAtIntervals(offset + 0x10, interval, 0x00, 0xFF);
+            
+            LoadValues(values);
         }
-    }
+*/
 
-    private void SaveButton_Click(object sender, EventArgs e)
-    {
-        var selectedArea = areaComboBox.SelectedItem.ToString();
-        var offset = offsetAddresses.FirstOrDefault(oa => oa.AreaName == selectedArea)?.Offset ?? 0;
-        var selectedValue = valueComboBox.SelectedItem.ToString();
-        var newData = valueMappings.FirstOrDefault(vm => vm.ValueName == selectedValue)?.HexValue;
 
-        if (newData != null)
+        private void AreaListBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            binaryFileService.WriteBytes(offset, newData);
+            var selectedArea = areaListBox.SelectedItem.ToString();
+            if (preloadedValues.ContainsKey(selectedArea))
+            {
+                LoadValues(preloadedValues[selectedArea]);
+            }
+        }
+
+        private void LoadValues(List<(byte[], long)> values)
+        {
+            valuePanel.SuspendLayout();
+            valuePanel.Controls.Clear();
+            valueComboBoxOffsets.Clear();
+
+            var comboBoxes = new List<ComboBox>();
+
+            int yPos = 10;
+            foreach (var (value, offset) in values)
+            {
+                var hexValue = Convert.ToHexString(value);
+                var mapping = valueMappings.FirstOrDefault(v => Convert.ToHexString(v.HexValue) == hexValue);
+                ComboBox comboBox = new ComboBox { Width = 200 };
+
+                foreach (var valueMapping in valueMappings)
+                {
+                    comboBox.Items.Add(valueMapping.ValueName);
+                }
+                if (mapping != null)
+                {
+                    comboBox.SelectedItem = mapping.ValueName;
+                }
+                else
+                {
+                    comboBox.Items.Add(hexValue);
+                    comboBox.SelectedItem = hexValue;
+                }
+                valueComboBoxOffsets[comboBox] = offset;
+                comboBoxes.Add(comboBox);
+            }
+            foreach (var comboBox in comboBoxes)
+            {
+                comboBox.Top = yPos;
+                comboBox.Left = 10;
+                valuePanel.Controls.Add(comboBox);
+                yPos += 30;
+            }
+            valuePanel.ResumeLayout();
+        }
+
+
+        private void SaveButton_Click(object sender, EventArgs e)
+        {
+            var newPreloadedValues = new List<(byte[], long)>();
+            foreach (var comboBox in valueComboBoxOffsets.Keys)
+            {
+                var offset = valueComboBoxOffsets[comboBox];
+                var selectedValue = comboBox.SelectedItem.ToString();
+                var newData = valueMappings.FirstOrDefault(vm => vm.ValueName == selectedValue)?.HexValue;
+
+                if (newData != null)
+                {
+                    binaryFileService.WriteBytes(offset, newData);
+                }
+                else
+                {
+                    MessageBox.Show("Invalid value selected.");
+                }
+                newPreloadedValues.Add((newData, offset));
+            }
+            preloadedValues[areaListBox.SelectedItem.ToString()] = newPreloadedValues;
             MessageBox.Show("Data saved successfully.");
-        }
-        else
-        {
-            MessageBox.Show("Invalid value selected.");
         }
     }
 }
