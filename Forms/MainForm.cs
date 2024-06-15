@@ -20,10 +20,14 @@ namespace DigimonWorldDuskEditor.Forms
         private List<ValueMapping> valueMappings;
         private Dictionary<string, List<(byte[], long)>> preloadedValues;
         private Dictionary<ComboBox, long> valueComboBoxOffsets;
+        private MenuStrip menuStrip;
+        private ToolStripMenuItem fileMenuItem;
+        private ToolStripMenuItem openFileMenuItem;
+        private string loadedRomPath;
     
         public MainForm()
         {
-            binaryFileService = new BinaryFileService("C:/Workspace/digimon_stuffs/Digimon World - Dusk (USA).nds");
+            //binaryFileService = new BinaryFileService("C:/Workspace/digimon_stuffs/Digimon World - Dusk (USA).nds");
             mappingService = new MappingService("C:/Workspace/digimon_stuffs/DigimonWorldDuskEditor/Data/locations.txt", "C:/Workspace/digimon_stuffs/DigimonWorldDuskEditor/Data/digimon.txt");
             offsetAddresses = mappingService.GetOffsetAddresses();
 
@@ -32,7 +36,7 @@ namespace DigimonWorldDuskEditor.Forms
             preloadedValues = new Dictionary<string, List<(byte[], long)>>();
             valueComboBoxOffsets = new Dictionary<ComboBox, long>();
 
-            PreloadValues();
+            //PreloadValues();
             InitializeComponents();
         }
     
@@ -49,13 +53,14 @@ namespace DigimonWorldDuskEditor.Forms
 
         private void InitializeComponents()
         {
-            this.Text = "Digimon World Dusk Editor";
-            this.Width = 750;
+            this.Text = "Digimon World Dusk Encounter Editor";
+            this.Width = 760;
             this.Height = 500;
 
-            areaListBox = new ListBox { Dock = DockStyle.Left, Width = 250 };
-            valuePanel = new Panel { Dock = DockStyle.Fill };
-            saveButton = new Button { Text = "Save", Dock = DockStyle.Bottom, Height = 40, Width = 100 };
+
+            areaListBox = new ListBox { Dock = DockStyle.Left, Width = 250, Enabled = false };
+            valuePanel = new Panel { Dock = DockStyle.Fill, Enabled = false };
+            saveButton = new Button { Text = "Save", Dock = DockStyle.Bottom, Height = 40, Width = 100, Enabled = false };
 
             areaListBox.SelectedIndexChanged += AreaListBox_SelectedIndexChanged;
             saveButton.Click += SaveButton_Click;
@@ -64,28 +69,48 @@ namespace DigimonWorldDuskEditor.Forms
             {
                 areaListBox.Items.Add(offsetAddress.AreaName);
             }
+            
+            menuStrip = new MenuStrip();
+            fileMenuItem = new ToolStripMenuItem("File");
+            openFileMenuItem = new ToolStripMenuItem("Open...");
+
+            openFileMenuItem.Click += OpenFileMenuItem_Click;
+
+            fileMenuItem.DropDownItems.Add(openFileMenuItem);
+            menuStrip.Items.Add(fileMenuItem);
+
     
             Controls.Add(saveButton);
             Controls.Add(valuePanel);
             Controls.Add(areaListBox);
+            Controls.Add(menuStrip);
 
-            //CreateComboBoxes();
         }
 
-
-/*
-        private void AreaListBox_SelectedIndexChanged(object sender, EventArgs e)
+        private void OpenFileMenuItem_Click(object sender, EventArgs e)
         {
-            var selectedArea = areaListBox.SelectedItem.ToString();
-            var offset = offsetAddresses.FirstOrDefault(oa => oa.AreaName == selectedArea)?.Offset ?? 0;
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "NDS files (*.nds)|*.nds|All files (*.*)|*.*";
+                openFileDialog.FilterIndex = 1;
+                openFileDialog.RestoreDirectory = true;
 
-            // New interval and termination logic
-            var interval = 0x18; // 24 in decimal
-            var values = binaryFileService.ReadValuesAtIntervals(offset + 0x10, interval, 0x00, 0xFF);
-            
-            LoadValues(values);
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    string selectedFileName = openFileDialog.FileName;
+                    binaryFileService = new BinaryFileService(selectedFileName);
+                    preloadedValues.Clear();
+                    PreloadValues();
+                    
+                    foreach (Control control in Controls)
+                    {
+                        control.Enabled = true;
+                    }
+                }
+            }
         }
-*/
+
+
 
 
         private void AreaListBox_SelectedIndexChanged(object sender, EventArgs e)
@@ -136,6 +161,11 @@ namespace DigimonWorldDuskEditor.Forms
                     comboBox.Items.Add(hexValue);
                     comboBox.SelectedItem = hexValue;
                 }
+
+                comboBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+                comboBox.AutoCompleteSource = AutoCompleteSource.CustomSource;
+                comboBox.AutoCompleteCustomSource.AddRange(valueMappings.Select(vm => vm.ValueName).ToArray());
+
                 valueComboBoxOffsets[comboBox] = offset;
                 comboBoxes.Add(comboBox);
             }
@@ -145,7 +175,7 @@ namespace DigimonWorldDuskEditor.Forms
                 if(comboBoxIter != 0 && comboBoxIter % 2 == 0)
                     yPos += 40;
                 comboBox.Top = yPos;
-                comboBox.Left = 10 + 250 * (comboBoxIter % 2);
+                comboBox.Left = 30 + 240 * (comboBoxIter % 2);
                 valuePanel.Controls.Add(comboBox);
                 comboBoxIter += 1;
                 comboBox.DropDown += DigimonComboBox_DropDown;
