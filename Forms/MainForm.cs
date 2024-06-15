@@ -50,7 +50,7 @@ namespace DigimonWorldDuskEditor.Forms
         private void InitializeComponents()
         {
             this.Text = "Digimon World Dusk Editor";
-            this.Width = 1024;
+            this.Width = 750;
             this.Height = 500;
 
             areaListBox = new ListBox { Dock = DockStyle.Left, Width = 250 };
@@ -128,12 +128,15 @@ namespace DigimonWorldDuskEditor.Forms
                 valueComboBoxOffsets[comboBox] = offset;
                 comboBoxes.Add(comboBox);
             }
+            int comboBoxIter = 0;
             foreach (var comboBox in comboBoxes)
             {
+                if(comboBoxIter != 0 && comboBoxIter % 2 == 0)
+                    yPos += 40;
                 comboBox.Top = yPos;
-                comboBox.Left = 10;
+                comboBox.Left = 10 + 250 * (comboBoxIter % 2);
                 valuePanel.Controls.Add(comboBox);
-                yPos += 30;
+                comboBoxIter += 1;
             }
             valuePanel.ResumeLayout();
         }
