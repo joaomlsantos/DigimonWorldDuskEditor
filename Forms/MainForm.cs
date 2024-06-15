@@ -97,6 +97,16 @@ namespace DigimonWorldDuskEditor.Forms
             }
         }
 
+        private void DigimonComboBox_DropDown(object sender, EventArgs e)
+        {
+            ComboBox curComboBox = (ComboBox)sender;
+            curComboBox.Items.Clear();
+            foreach (var valueMapping in valueMappings)
+            {
+                curComboBox.Items.Add(valueMapping.ValueName);
+            }
+        }
+
         private void LoadValues(List<(byte[], long)> values)
         {
             valuePanel.SuspendLayout();
@@ -112,12 +122,13 @@ namespace DigimonWorldDuskEditor.Forms
                 var mapping = valueMappings.FirstOrDefault(v => Convert.ToHexString(v.HexValue) == hexValue);
                 ComboBox comboBox = new ComboBox { Width = 200 };
 
-                foreach (var valueMapping in valueMappings)
-                {
-                    comboBox.Items.Add(valueMapping.ValueName);
-                }
+                //foreach (var valueMapping in valueMappings)
+                //{
+                //    comboBox.Items.Add(valueMapping.ValueName);
+                //}
                 if (mapping != null)
                 {
+                    comboBox.Items.Add(mapping.ValueName);
                     comboBox.SelectedItem = mapping.ValueName;
                 }
                 else
@@ -137,6 +148,7 @@ namespace DigimonWorldDuskEditor.Forms
                 comboBox.Left = 10 + 250 * (comboBoxIter % 2);
                 valuePanel.Controls.Add(comboBox);
                 comboBoxIter += 1;
+                comboBox.DropDown += DigimonComboBox_DropDown;
             }
             valuePanel.ResumeLayout();
         }
