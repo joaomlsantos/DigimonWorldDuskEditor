@@ -11,19 +11,25 @@ namespace DigimonWorldDuskEditor.Forms
 {
     public class MainForm : Form
     {
-        private ListBox areaListBox;
-        private Panel valuePanel;
+        private TabControl tabControl;
+        private TabPage encountersTabPage;
+        private TabPage evolutionsTabPage;
+        //private ListBox areaListBox;
+        //private Panel valuePanel;
         private Button saveButton;
-        private BinaryFileService binaryFileService;
-        private MappingService mappingService;
-        private List<OffsetAddress> offsetAddresses;
-        private List<ValueMapping> valueMappings;
-        private Dictionary<string, List<(byte[], long)>> preloadedValues;
-        private Dictionary<ComboBox, long> valueComboBoxOffsets;
         private MenuStrip menuStrip;
         private ToolStripMenuItem fileMenuItem;
         private ToolStripMenuItem openFileMenuItem;
         private string loadedRomPath;
+
+        private BinaryFileService binaryFileService;
+        private MappingService mappingService;
+        public List<OffsetAddress> offsetAddresses;
+        public List<ValueMapping> valueMappings;
+        //public Dictionary<ComboBox, long> valueComboBoxOffsets;
+
+        private EncounterEditor encounterEditor;
+        private EvolutionEditor evolutionEditor;
     
         public MainForm()
         {
@@ -32,57 +38,56 @@ namespace DigimonWorldDuskEditor.Forms
             offsetAddresses = mappingService.GetOffsetAddresses();
 
             valueMappings = mappingService.GetValueMappings();
-
-            preloadedValues = new Dictionary<string, List<(byte[], long)>>();
-            valueComboBoxOffsets = new Dictionary<ComboBox, long>();
+            //valueComboBoxOffsets = new Dictionary<ComboBox, long>();
 
             //PreloadValues();
             InitializeComponents();
         }
     
-        private void PreloadValues()
-        {
-            var interval = 0x18;
-            foreach (var offsetAddress in offsetAddresses)
-            {
-                var offset = offsetAddress.Offset;
-                var values = binaryFileService.ReadValuesAtIntervals(offset + 0x10, interval, 0x00, 0xFF);
-                preloadedValues[offsetAddress.AreaName] = values;
-            }
-        }
 
         private void InitializeComponents()
         {
             this.Text = "Digimon World Dusk Encounter Editor";
             this.Width = 760;
-            this.Height = 500;
+            this.Height = 550;
 
-
-            areaListBox = new ListBox { Dock = DockStyle.Left, Width = 250, Enabled = false };
-            valuePanel = new Panel { Dock = DockStyle.Fill, Enabled = false };
-            saveButton = new Button { Text = "Save", Dock = DockStyle.Bottom, Height = 40, Width = 100, Enabled = false };
-
-            areaListBox.SelectedIndexChanged += AreaListBox_SelectedIndexChanged;
-            saveButton.Click += SaveButton_Click;
-    
-            foreach (var offsetAddress in offsetAddresses)
-            {
-                areaListBox.Items.Add(offsetAddress.AreaName);
-            }
-            
             menuStrip = new MenuStrip();
             fileMenuItem = new ToolStripMenuItem("File");
             openFileMenuItem = new ToolStripMenuItem("Open...");
-
             openFileMenuItem.Click += OpenFileMenuItem_Click;
-
             fileMenuItem.DropDownItems.Add(openFileMenuItem);
             menuStrip.Items.Add(fileMenuItem);
 
+            //areaListBox = new ListBox { Dock = DockStyle.Left, Width = 250, Enabled = false };
+            //valuePanel = new Panel { Dock = DockStyle.Fill, Enabled = false };
+            saveButton = new Button { Text = "Save", Dock = DockStyle.Bottom, Height = 40, Width = 100, Enabled = false };
+            saveButton.Click += SaveButton_Click;
     
+            //areaListBox.SelectedIndexChanged += AreaListBox_SelectedIndexChanged;
+            
+            //foreach (var offsetAddress in offsetAddresses)
+            //{
+            //    areaListBox.Items.Add(offsetAddress.AreaName);
+            //}
+            
+            tabControl = new TabControl { Dock = DockStyle.Top, Height = 450 };
+            encountersTabPage = new TabPage("Encounters");
+            evolutionsTabPage = new TabPage("Evolutions");
+
+            encounterEditor = new EncounterEditor(offsetAddresses);
+            evolutionEditor = new EvolutionEditor(offsetAddresses);
+
+            encountersTabPage.Controls.Add(encounterEditor);
+            evolutionsTabPage.Controls.Add(evolutionEditor);
+
+            tabControl.TabPages.Add(encountersTabPage);
+            tabControl.TabPages.Add(evolutionsTabPage);
+
+    
+            //Controls.Add(valuePanel);
+            //Controls.Add(areaListBox);
+            Controls.Add(tabControl);
             Controls.Add(saveButton);
-            Controls.Add(valuePanel);
-            Controls.Add(areaListBox);
             Controls.Add(menuStrip);
 
         }
@@ -99,8 +104,9 @@ namespace DigimonWorldDuskEditor.Forms
                 {
                     string selectedFileName = openFileDialog.FileName;
                     binaryFileService = new BinaryFileService(selectedFileName);
-                    preloadedValues.Clear();
-                    PreloadValues();
+                    encounterEditor.LoadData(binaryFileService, offsetAddresses);
+                    //preloadedValues.Clear();
+                    //PreloadValues();
                     
                     foreach (Control control in Controls)
                     {
@@ -111,7 +117,7 @@ namespace DigimonWorldDuskEditor.Forms
         }
 
 
-
+        /*
 
         private void AreaListBox_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -205,6 +211,19 @@ namespace DigimonWorldDuskEditor.Forms
             }
             preloadedValues[areaListBox.SelectedItem.ToString()] = newPreloadedValues;
             MessageBox.Show("Data saved successfully.");
+        }
+        */
+
+        private void SaveButton_Click(object sender, EventArgs e)
+        {
+            if (tabControl.SelectedTab == encountersTabPage)
+            {
+                encounterEditor.SaveData(binaryFileService);
+            }
+            else if (tabControl.SelectedTab == evolutionsTabPage)
+            {
+                evolutionEditor.SaveData(binaryFileService);
+            }
         }
     }
 }
